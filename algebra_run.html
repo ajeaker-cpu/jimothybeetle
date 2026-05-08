@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jimothy Beetle: Algebra Run</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      overflow: hidden;
+      background: #020617;
+      color: #fff7dc;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    body { display: grid; place-items: center; }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: #111827;
+    }
+    #ui {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+    .hud {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill {
+      background: rgba(15,23,42,.78);
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 999px;
+      padding: 9px 13px;
+      font-weight: 900;
+      text-shadow: 0 2px 8px #000;
+      backdrop-filter: blur(7px);
+    }
+    .menu {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(255,209,102,.22), transparent 34%),
+        radial-gradient(circle at 80% 75%, rgba(96,165,250,.2), transparent 34%),
+        rgba(2,6,23,.9);
+      pointer-events: auto;
+      padding: 18px;
+    }
+    .card {
+      width: min(900px, 94vw);
+      max-height: 92vh;
+      overflow: auto;
+      background: rgba(15,23,42,.94);
+      border: 3px solid #ffd166;
+      border-radius: 30px;
+      padding: 24px;
+      box-shadow: 0 30px 90px rgba(0,0,0,.58);
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(42px, 7vw, 82px);
+      line-height: .86;
+      letter-spacing: -.07em;
+      text-shadow: 0 5px 0 #7c2d12;
+    }
+    .subtitle {
+      margin: 14px 0 18px;
+      color: #fde68a;
+      font-size: 18px;
+      line-height: 1.35;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 18px 0;
+    }
+    .info, .choice {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 18px;
+      padding: 13px;
+      line-height: 1.35;
+    }
+    .choice {
+      cursor: pointer;
+      border: 2px solid rgba(255,255,255,.12);
+      font-weight: 900;
+    }
+    .choice.active { border-color: #ffd166; background: rgba(255,209,102,.16); }
+    .choice small { display: block; opacity: .75; font-weight: 500; margin-top: 5px; }
+    .info strong { color: #ffd166; }
+    button {
+      pointer-events: auto;
+      border: 0;
+      border-radius: 18px;
+      padding: 15px 18px;
+      font-weight: 950;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .primary {
+      width: 100%;
+      color: #111827;
+      background: linear-gradient(135deg, #ffd166, #fb923c);
+      box-shadow: 0 16px 32px rgba(251,146,60,.28);
+    }
+    .secondary {
+      margin-top: 10px;
+      color: #fff7dc;
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.18);
+      width: 100%;
+    }
+    .toast {
+      position: absolute;
+      left: 50%;
+      top: 92px;
+      transform: translateX(-50%);
+      font-size: 30px;
+      font-weight: 950;
+      text-shadow: 0 4px 12px #000;
+      opacity: 0;
+      transition: opacity .16s;
+      text-align: center;
+    }
+    .toast.show { opacity: 1; }
+    .mobile {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      display: none;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+      pointer-events: auto;
+    }
+    .touch {
+      height: 62px;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 16px;
+      background: rgba(15,23,42,.72);
+      color: #fff7dc;
+      font-weight: 950;
+      backdrop-filter: blur(6px);
+    }
+    @media (max-width: 760px) {
+      .grid { grid-template-columns: 1fr; }
+      .mobile { display: grid; }
+      .pill { font-size: 13px; padding: 7px 10px; }
+    }
+  </style>
+</head>
+<body>
+<canvas id="game" width="1280" height="720"></canvas>
+<div id="ui">
+  <div class="hud">
+    <div class="group">
+      <div class="pill" id="score">Score 0</div>
+      <div class="pill" id="streak">Streak 0</div>
+      <div class="pill" id="speed">Speed 1</div>
+    </div>
+    <div class="group">
+      <div class="pill" id="question">Solve: x = ?</div>
+      <div class="pill" id="lives">Lives 3</div>
+      <div class="pill" id="best">Best 0</div>
+    </div>
+  </div>
+  <div class="toast" id="toast">Correct!</div>
+  <div class="mobile">
+    <button class="touch" data-touch="left">◀ Left</button>
+    <button class="touch" data-touch="jump">Jump</button>
+    <button class="touch" data-touch="right">Right ▶</button>
+  </div>
+  <div class="menu" id="menu">
+    <div class="card">
+      <h1>Algebra<br>Run</h1>
+      <div class="subtitle">Jimothy Beetle is sprinting through the Chalkboard Jungle. Move between lanes and crash through the correct answer gate to solve equations.</div>
+      <div class="grid" id="difficultyChoices">
+        <div class="choice active" data-diff="easy">Easy<small>One-step equations like x + 4 = 9.</small></div>
+        <div class="choice" data-diff="medium">Medium<small>Two-step equations like 3x - 2 = 10.</small></div>
+        <div class="choice" data-diff="hard">Hard<small>Mixed equations with negatives and parentheses.</small></div>
+      </div>
+      <div class="grid">
+        <div class="info"><strong>Controls</strong><br>Arrow keys or A/D move lanes. Space or Up jumps over logs.</div>
+        <div class="info"><strong>Goal</strong><br>Pick the correct answer gate. Wrong gates cost a life. Correct answers build your streak.</div>
+        <div class="info"><strong>Beetle Theme</strong><br>Collect golden crumbs, dodge pencil logs, and outrun the Homework Roach.</div>
+      </div>
+      <button class="primary" id="start">Start Algebra Run</button>
+      <button class="secondary" id="reset">Reset Best Score</button>
+    </div>
+  </div>
+</div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const ui = {
+  menu: document.getElementById('menu'), score: document.getElementById('score'), streak: document.getElementById('streak'),
+  speed: document.getElementById('speed'), question: document.getElementById('question'), lives: document.getElementById('lives'),
+  best: document.getElementById('best'), toast: document.getElementById('toast'), start: document.getElementById('start'), reset: document.getElementById('reset')
+};
+const BEST_KEY = 'jimothy_algebra_run_best';
+const lanes = [360, 640, 920];
+let difficulty = 'easy';
+let G, raf = 0, last = 0, audio = null;
+const keys = { left:false, right:false, jump:false };
+
+function newGame() {
+  return {
+    mode: 'menu', score: 0, streak: 0, lives: 3, speed: 390, distance: 0, shake: 0,
+    player: { lane: 1, targetLane: 1, x: lanes[1], y: 590, vy: 0, jumping: false, inv: 0 },
+    current: makeEquation(), gates: [], crumbs: [], logs: [], parts: [], texts: [], decor: [], spawnTimer: 0, crumbTimer: 0, logTimer: 1.4,
+    gateCooldown: 0
+  };
+}
+
+function makeEquation() {
+  let x, a, b, c, text;
+  if (difficulty === 'easy') {
+    x = randInt(1, 12);
+    b = randInt(1, 10);
+    if (Math.random() < .5) { c = x + b; text = 'x + ' + b + ' = ' + c; }
+    else { c = x - b; text = 'x - ' + b + ' = ' + c; }
+  } else if (difficulty === 'medium') {
+    x = randInt(-8, 12); if (x === 0) x = 4;
+    a = randInt(2, 6); b = randInt(-10, 10); c = a*x + b;
+    text = a + 'x ' + (b >= 0 ? '+ ' + b : '- ' + Math.abs(b)) + ' = ' + c;
+  } else {
+    x = randInt(-10, 14); if (x === 0) x = -3;
+    a = randInt(2, 5); b = randInt(-7, 7); c = a*(x + b);
+    text = a + '(x ' + (b >= 0 ? '+ ' + b : '- ' + Math.abs(b)) + ') = ' + c;
+  }
+  return { text, answer: x };
+}
+
+function wrongAnswers(ans) {
+  const set = new Set();
+  while (set.size < 2) {
+    let w = ans + randInt(-6, 6);
+    if (w !== ans) set.add(w);
+  }
+  return Array.from(set);
+}
+
+function spawnGate() {
+  const ans = G.current.answer;
+  const vals = shuffle([ans, ...wrongAnswers(ans)]);
+  G.gates.push({ y: -80, vals, correct: ans, hit: false });
+}
+
+function startGame() {
+  cancelAnimationFrame(raf);
+  G = newGame();
+  G.mode = 'play';
+  ui.menu.style.display = 'none';
+  makeDecor();
+  spawnGate();
+  last = performance.now();
+  beep(440,.05); beep(660,.07);
+  raf = requestAnimationFrame(loop);
+}
+
+function makeDecor() {
+  G.decor = [];
+  for (let i=0;i<90;i++) G.decor.push({x: Math.random()*1280, y: Math.random()*720, s: 3+Math.random()*12, t: i%4});
+}
+
+function loop(t) {
+  const dt = Math.min(.033, (t-last)/1000 || 0);
+  last = t;
+  update(dt);
+  draw();
+  raf = requestAnimationFrame(loop);
+}
+
+function update(dt) {
+  if (!G || G.mode !== 'play') return;
+  const p = G.player;
+  G.distance += G.speed * dt;
+  G.speed += dt * 5.2;
+  if (G.shake > 0) G.shake -= dt;
+  if (p.inv > 0) p.inv -= dt;
+  if (G.gateCooldown > 0) G.gateCooldown -= dt;
+
+  if (keys.left) { moveLane(-1); keys.left = false; }
+  if (keys.right) { moveLane(1); keys.right = false; }
+  if (keys.jump) { jump(); keys.jump = false; }
+
+  p.x += (lanes[p.targetLane] - p.x) * Math.min(1, dt * 12);
+  if (p.jumping) {
+    p.vy += 1550 * dt;
+    p.y += p.vy * dt;
+    if (p.y >= 590) { p.y = 590; p.vy = 0; p.jumping = false; }
+  }
+
+  G.spawnTimer -= dt;
+  if (G.spawnTimer <= 0) { spawnGate(); G.spawnTimer = 3.2 + Math.random()*1.1; }
+  G.crumbTimer -= dt;
+  if (G.crumbTimer <= 0) { spawnCrumbRow(); G.crumbTimer = .75 + Math.random()*.5; }
+  G.logTimer -= dt;
+  if (G.logTimer <= 0) { spawnLog(); G.logTimer = 1.8 + Math.random()*1.5; }
+
+  for (const gate of G.gates) gate.y += G.speed * dt;
+  for (const c of G.crumbs) c.y += G.speed * dt;
+  for (const l of G.logs) l.y += G.speed * dt;
+
+  handleCollisions();
+  updateParticles(dt);
+  G.gates = G.gates.filter(g => g.y < 820 && !g.remove);
+  G.crumbs = G.crumbs.filter(c => c.y < 760 && !c.gone);
+  G.logs = G.logs.filter(l => l.y < 760 && !l.gone);
+  updateHud();
+}
+
+function moveLane(dir) {
+  const p = G.player;
+  p.targetLane = clamp(p.targetLane + dir, 0, 2);
+}
+function jump() {
+  const p = G.player;
+  if (!p.jumping) { p.jumping = true; p.vy = -650; beep(330,.04,'triangle'); }
+}
+
+function spawnCrumbRow() {
+  const lane = randInt(0,2);
+  G.crumbs.push({x:lanes[lane], y:-30, r:12, spin:Math.random()*6});
+  if (Math.random() < .25) G.crumbs.push({x:lanes[(lane+1)%3], y:-95, r:12, spin:Math.random()*6});
+}
+function spawnLog() {
+  const lane = randInt(0,2);
+  G.logs.push({x:lanes[lane], y:-60, lane, r:30, rot:Math.random()*6});
+}
+
+function handleCollisions() {
+  const p = G.player;
+  for (const c of G.crumbs) {
+    if (c.gone) continue;
+    if (dist(p.x,p.y,c.x,c.y) < 38) {
+      c.gone = true;
+      G.score += 50 + G.streak * 5;
+      float(c.x,c.y,'+crumb','#ffd166',20);
+      burst(c.x,c.y,'#facc15',10);
+      beep(700,.025,'triangle');
+    }
+  }
+  for (const l of G.logs) {
+    if (l.gone || p.inv > 0) continue;
+    if (Math.abs(p.x - l.x) < 58 && Math.abs(p.y - l.y) < 48 && !p.jumping) {
+      l.gone = true;
+      damage('Pencil Log!');
+    }
+  }
+  for (const g of G.gates) {
+    if (g.hit) continue;
+    if (g.y > 500 && g.y < 650) {
+      const laneIndex = nearestLane(p.x);
+      const val = g.vals[laneIndex];
+      g.hit = true;
+      g.remove = true;
+      if (val === g.correct) correct(g);
+      else wrong(g, val);
+    }
+  }
+}
+
+function correct(gate) {
+  G.streak++;
+  const bonus = 500 + G.streak * 120;
+  G.score += bonus;
+  float(lanes[nearestLane(G.player.x)], gate.y, 'CORRECT +' + bonus, '#bbf7d0', 26);
+  burst(lanes[nearestLane(G.player.x)], gate.y, '#22c55e', 28);
+  toast('Correct! x = ' + gate.correct);
+  beep(620,.05,'triangle'); beep(900,.06,'triangle');
+  G.current = makeEquation();
+}
+function wrong(gate, val) {
+  G.streak = 0;
+  damage('Wrong! You picked ' + val + ', answer was ' + gate.correct);
+  G.current = makeEquation();
+}
+function damage(msg) {
+  if (G.player.inv > 0) return;
+  G.lives--;
+  G.player.inv = 1.25;
+  G.shake = .22;
+  float(G.player.x,G.player.y,msg,'#fecaca',22);
+  burst(G.player.x,G.player.y,'#ef4444',30);
+  beep(110,.09,'square');
+  toast(msg);
+  if (G.lives <= 0) gameOver();
+}
+function gameOver() {
+  G.mode = 'over';
+  const best = Number(localStorage.getItem(BEST_KEY)||0);
+  if (G.score > best) localStorage.setItem(BEST_KEY, Math.floor(G.score));
+  setTimeout(() => { ui.menu.style.display='grid'; ui.start.textContent='Play Again'; updateHud(); }, 900);
+}
+
+function draw() {
+  const sh = G && G.shake > 0 ? G.shake * 18 : 0;
+  ctx.save();
+  ctx.clearRect(0,0,1280,720);
+  if (sh) ctx.translate(rand(-sh,sh),rand(-sh,sh));
+  drawWorld();
+  drawRoad();
+  drawItems();
+  drawPlayer();
+  drawParticles();
+  drawTexts();
+  if (G.mode === 'over') centerText('GAME OVER','Score ' + Math.floor(G.score).toLocaleString());
+  ctx.restore();
+}
+function drawWorld() {
+  const sky = ctx.createLinearGradient(0,0,0,720);
+  sky.addColorStop(0,'#0f172a'); sky.addColorStop(.55,'#1e3a8a'); sky.addColorStop(.56,'#365314'); sky.addColorStop(1,'#244d19');
+  ctx.fillStyle = sky; ctx.fillRect(0,0,1280,720);
+  ctx.fillStyle = '#fde68a'; circle(1080,115,38);
+  for (const d of G.decor) {
+    if (d.t === 0) { ctx.fillStyle='rgba(255,255,255,.13)'; ellipse(d.x,d.y,d.s*4,d.s*1.3,1); }
+    else { ctx.fillStyle=['#f472b6','#fde68a','#93c5fd'][d.t-1]; circle(d.x,520+d.y%190,d.s*.45); }
+  }
+}
+function drawRoad() {
+  ctx.fillStyle = '#111827';
+  ctx.beginPath();
+  ctx.moveTo(360,0); ctx.lineTo(920,0); ctx.lineTo(1140,720); ctx.lineTo(140,720); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#facc15'; ctx.lineWidth = 8; line(360,0,140,720); line(920,0,1140,720);
+  ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 4; ctx.setLineDash([28,24]);
+  line(546,0,418,720); line(734,0,862,720); ctx.setLineDash([]);
+  ctx.fillStyle='rgba(255,247,220,.08)'; ctx.font='950 48px Arial'; ctx.textAlign='center';
+  ctx.fillText('ALGEBRA RUN',640,170); ctx.textAlign='left';
+}
+function drawItems() {
+  for (const g of G.gates) drawGate(g);
+  for (const c of G.crumbs) {
+    ctx.save(); ctx.translate(c.x,c.y); ctx.rotate(c.spin + performance.now()/300);
+    ctx.fillStyle='#fbbf24'; ctx.strokeStyle='#78350f'; ctx.lineWidth=2; star(0,0,13,7,7); ctx.fill(); ctx.stroke(); ctx.restore();
+  }
+  for (const l of G.logs) {
+    ctx.save(); ctx.translate(l.x,l.y); ctx.rotate(l.rot);
+    ctx.fillStyle='#fbbf24'; ctx.fillRect(-48,-13,96,26); ctx.fillStyle='#111827'; ctx.font='900 16px Arial'; ctx.textAlign='center'; ctx.fillText('PENCIL',0,6); ctx.restore();
+  }
+}
+function drawGate(g) {
+  const gateW = 220;
+  for (let i=0;i<3;i++) {
+    const x = lanes[i];
+    ctx.save(); ctx.translate(x,g.y);
+    ctx.fillStyle = 'rgba(15,23,42,.82)'; round(-gateW/2,-48,gateW,96,18,1);
+    ctx.strokeStyle = g.vals[i] === g.correct ? 'rgba(34,197,94,.95)' : 'rgba(239,68,68,.85)';
+    ctx.lineWidth = 4; round(-gateW/2,-48,gateW,96,18,0);
+    ctx.fillStyle = '#fff7dc'; ctx.font='950 42px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(String(g.vals[i]),0,4);
+    ctx.restore();
+  }
+}
+function drawPlayer() {
+  const p = G.player;
+  ctx.save(); ctx.translate(p.x,p.y);
+  if (p.inv > 0) ctx.globalAlpha = .55 + Math.sin(performance.now()/60)*.25;
+  ctx.strokeStyle='#fde68a'; ctx.lineWidth=6; ctx.lineCap='round';
+  line(-24,-14,-52,-28); line(24,-14,52,-28); line(-25,4,-56,4); line(25,4,56,4); line(-22,24,-48,42); line(22,24,48,42);
+  ctx.fillStyle='#7c2d12'; ellipse(0,10,34,46,1);
+  ctx.strokeStyle='rgba(255,255,255,.4)'; ctx.lineWidth=4; line(0,-30,0,54);
+  ctx.fillStyle='#f97316'; ellipse(0,-42,27,22,1);
+  ctx.fillStyle='#111827'; circle(-10,-47,4); circle(10,-47,4);
+  ctx.fillStyle='#fff7dc'; circle(-15,-2,6); circle(15,-2,6); circle(-16,24,6); circle(16,24,6);
+  ctx.restore(); ctx.globalAlpha=1;
+}
+function updateParticles(dt) {
+  for (const p of G.parts) { p.x += p.vx*dt; p.y += p.vy*dt; p.vy += (p.g||0)*dt; p.life -= dt; }
+  G.parts = G.parts.filter(p=>p.life>0);
+  for (const t of G.texts) { t.y -= 45*dt; t.life -= dt; }
+  G.texts = G.texts.filter(t=>t.life>0);
+}
+function drawParticles() { for (const p of G.parts) { ctx.globalAlpha=Math.max(0,p.life/p.max); ctx.fillStyle=p.c; circle(p.x,p.y,p.s); } ctx.globalAlpha=1; }
+function drawTexts() { ctx.textAlign='center'; for (const t of G.texts) { ctx.globalAlpha=Math.max(0,t.life/t.max); ctx.fillStyle=t.c; ctx.font=`950 ${t.size}px Arial`; ctx.fillText(t.txt,t.x,t.y); } ctx.globalAlpha=1; ctx.textAlign='left'; }
+function centerText(a,b) { ctx.save(); ctx.fillStyle='rgba(2,6,23,.82)'; round(370,260,540,160,28,1); ctx.strokeStyle='#ffd166'; ctx.lineWidth=4; round(370,260,540,160,28,0); ctx.textAlign='center'; ctx.fillStyle='#fff7dc'; ctx.font='950 50px Arial'; ctx.fillText(a,640,330); ctx.fillStyle='#fde68a'; ctx.font='850 24px Arial'; ctx.fillText(b,640,368); ctx.restore(); }
+
+function updateHud() {
+  if (!G) return;
+  ui.score.textContent = 'Score ' + Math.floor(G.score).toLocaleString();
+  ui.streak.textContent = 'Streak ' + G.streak;
+  ui.speed.textContent = 'Speed ' + Math.floor(G.speed/100);
+  ui.question.textContent = 'Solve: ' + G.current.text;
+  ui.lives.textContent = 'Lives ' + G.lives;
+  ui.best.textContent = 'Best ' + Number(localStorage.getItem(BEST_KEY)||0).toLocaleString();
+}
+function toast(text) { ui.toast.textContent=text; ui.toast.classList.add('show'); setTimeout(()=>ui.toast.classList.remove('show'),1200); }
+function burst(x,y,c,n) { for (let i=0;i<n;i++) spark(x,y,c,rand(2,6)); }
+function spark(x,y,c,s=4) { G.parts.push({x,y,vx:rand(-190,190),vy:rand(-190,120),g:300,life:rand(.35,.85),max:.85,c,s}); }
+function float(x,y,txt,c,size=22) { G.texts.push({x,y,txt,c,size,life:1.15,max:1.15}); }
+function beep(freq,dur=.05,type='square') { try { audio ||= new (window.AudioContext||window.webkitAudioContext)(); const o=audio.createOscillator(), g=audio.createGain(); o.type=type; o.frequency.value=freq; g.gain.value=.035; o.connect(g); g.connect(audio.destination); o.start(); g.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+dur); o.stop(audio.currentTime+dur); } catch(e){} }
+function nearestLane(x) { let best=0, bd=Infinity; for(let i=0;i<lanes.length;i++){let d=Math.abs(x-lanes[i]); if(d<bd){bd=d;best=i}} return best; }
+function shuffle(a){ for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+function randInt(a,b){ return Math.floor(a+Math.random()*(b-a+1)); }
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function rand(a,b){return a+Math.random()*(b-a);}
+function dist(a,b,c,d){return Math.hypot(a-c,b-d);}
+function line(a,b,c,d){ctx.beginPath();ctx.moveTo(a,b);ctx.lineTo(c,d);ctx.stroke();}
+function circle(x,y,r){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
+function ellipse(x,y,rx,ry,f){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);f?ctx.fill():ctx.stroke();}
+function round(x,y,w,h,r,f){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();f?ctx.fill():ctx.stroke();}
+function star(x,y,r1,r2,n){ctx.beginPath();for(let i=0;i<n*2;i++){let a=-Math.PI/2+i*Math.PI/n,r=i%2?r2:r1,px=x+Math.cos(a)*r,py=y+Math.sin(a)*r;i?ctx.lineTo(px,py):ctx.moveTo(px,py)}ctx.closePath();}
+
+window.addEventListener('keydown', e => {
+  if (['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(e.code)) e.preventDefault();
+  if (e.code==='ArrowLeft'||e.code==='KeyA') keys.left = true;
+  if (e.code==='ArrowRight'||e.code==='KeyD') keys.right = true;
+  if (e.code==='ArrowUp'||e.code==='Space'||e.code==='KeyW') keys.jump = true;
+});
+window.addEventListener('keyup', e => {
+  if (e.code==='ArrowLeft'||e.code==='KeyA') keys.left = false;
+  if (e.code==='ArrowRight'||e.code==='KeyD') keys.right = false;
+  if (e.code==='ArrowUp'||e.code==='Space'||e.code==='KeyW') keys.jump = false;
+});
+document.querySelectorAll('[data-touch]').forEach(btn => {
+  btn.onpointerdown = e => { e.preventDefault(); const k=btn.dataset.touch; if(k==='left')keys.left=true; if(k==='right')keys.right=true; if(k==='jump')keys.jump=true; };
+});
+document.querySelectorAll('[data-diff]').forEach(el => {
+  el.onclick = () => { difficulty = el.dataset.diff; document.querySelectorAll('[data-diff]').forEach(x=>x.classList.remove('active')); el.classList.add('active'); G.current = makeEquation(); updateHud(); };
+});
+ui.start.onclick = startGame;
+ui.reset.onclick = () => { localStorage.removeItem(BEST_KEY); updateHud(); toast('Best score reset'); };
+function fit(){ const scale = Math.min(window.innerWidth/1280, window.innerHeight/720); canvas.style.width=(1280*scale)+'px'; canvas.style.height=(720*scale)+'px'; }
+window.addEventListener('resize', fit);
+G = newGame(); makeDecor(); fit(); updateHud(); draw();
+</script>
+</body>
+</html>
